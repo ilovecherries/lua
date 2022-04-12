@@ -27,7 +27,8 @@
 #include "ltable.h"
 #include "lzio.h"
 
-
+#include <stdio.h>
+#include <stdlib.h>
 
 #define next(ls)	(ls->current = zgetc(ls->z))
 
@@ -45,6 +46,10 @@ static const char *const luaX_tokens [] = {
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",
     "<number>", "<integer>", "<name>", "<string>"
+};
+
+static const char *const luaEnd_tokens [] = {
+    "fi", "wend", "enddef"
 };
 
 
@@ -66,15 +71,29 @@ static void save (LexState *ls, int c) {
   b->buffer[luaZ_bufflen(b)++] = cast_char(c);
 }
 
-
 void luaX_init (lua_State *L) {
   int i;
   TString *e = luaS_newliteral(L, LUA_ENV);  /* create env name */
   luaC_fix(L, obj2gco(e));  /* never collect this name */
+  // get extra value of end keyword
+  lu_byte endExtra;
+  endExtra = 0;
+  for (i = 0; i < NUM_RESERVED; i++) {
+    if (strcmp(luaX_tokens[i], "end") == 0) {
+      endExtra = cast_byte(i+1);
+      break;
+    }
+  }
   for (i=0; i<NUM_RESERVED; i++) {
     TString *ts = luaS_new(L, luaX_tokens[i]);
     luaC_fix(L, obj2gco(ts));  /* reserved words are never collected */
     ts->extra = cast_byte(i+1);  /* reserved word */
+  }
+  // now we'll just be stupid and make backwards ones assigned to "end"
+  for (i=0; i<3; i++) {
+    TString *ts = luaS_new(L, luaEnd_tokens[i]);
+    luaC_fix(L, obj2gco(ts));  /* reserved words are never collected */
+    ts->extra = endExtra;  /* reserved word */
   }
 }
 
